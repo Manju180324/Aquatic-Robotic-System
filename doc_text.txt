@@ -1,0 +1,312 @@
+An Autonomous Multi-Parameter Aquatic Robotic System for Real-Time Chemical Gradient Mapping, Contamination Source Localization, and Adaptive Remediation.
+Phase 1: Patrolling Mode
+Patrolling Mode is the default autonomous operational state of the Aqua Bot in which it continuously navigates the water body while collecting baseline chemical and physical data to detect early anomalies.
+Core Functions:
+Sensor Initialization & Calibration
+pH sensor (temperature compensated)
+Turbidity sensor
+Salinity sensor
+GPS and depth sensors
+Periodic Data Sampling
+Records pH, turbidity (NTU), Salinity, temperature, and location at fixed intervals.
+Builds a time-series dataset.
+Baseline Establishment
+Calculates rolling mean and standard deviation. (recent 50 datapoints)
+Defines normal lake conditions.
+Anomaly Monitoring
+Compares real-time readings with baseline values.
+Detects abnormal deviations using threshold logic.
+Estimates preliminary spatial gradients.
+If the bot moves 5 meters east and:
+pH changes from 7.2 → 6.8
+Then:
+Negative means pH decreasing.
+That suggests we are moving toward an acidic region.
+Controlled Navigation
+Moves in a predefined or adaptive grid path.
+Maintains moderate speed for efficient coverage.
+Energy Optimization
+Runs non-essential systems at low power.
+Remains in monitoring state unless anomaly detected.
+Sample dataset
+Phase 2: ANOMALY DETECTION (Investigation Trigger Layer)
+Phase 2 answers: “Is the deviation statistically significant and spatially meaningful?”
+It has 4 layers:
+Statistical deviation detection
+Multi-parameter validation (pH + turbidity)
+Temporal persistence check
+Spatial gradient confirmation
+Only if all pass → switch to Investigation Mode.
+STEP 1: Statistical Deviation Detection
+From Phase 1 we have:
+At time , new reading:
+Compute deviation score:
+This is a Z-score.
+Interpretation:
+|Z| < 2 → normal fluctuation
+2 < |Z| < 3 → suspicious
+|Z| > 3 → statistically abnormal
+Same calculation for turbidity:
+STEP 2: Multi-Parameter Validation
+Single parameter anomaly may be noise.
+So, we create composite anomaly index:
+Where:
+= weights
+Example:If pH more critical → ,
+If:
+Flag as anomaly candidate.
+STEP 3: Temporal Persistence Check
+Temporal Persistence Check = verifying that an abnormal signal persists over several time samples before confirming an anomaly.
+One abnormal reading is not enough.
+Define persistence window:
+Example: 5 consecutive samples.
+If:
+Then confirm anomaly.
+This prevents:
+Sensor spikes
+Electrical noise
+Temporary turbulence
+We are implementing a time-domain validation filter:
+Spatial check → how abnormal? (Z-score)
+Temporal check → how long abnormal?
+Both together reduce false positives.
+STEP 4: Preliminary Spatial Gradient Confirmation
+Now we check direction.
+Compute gradient:
+If gradient magnitude increasing consistently:
+Then pollution likely directional.
+If deviation exists but no gradient → maybe local mixing.
+The pH is abnormal
+But the abnormality is not changing directionally across space
+Therefore, it is probably caused by local turbulence or mixing, not a pollution plume. (A pollution plume means: A region of contaminated water moving away from a pollution source in a flow direction. )
+STEP 5: Confidence Score
+Define anomaly confidence:
+If:
+System switches to: INVESTIGATION MODE
+Why Multi-Layer Approach?
+Because lakes are noisy environments.
+we must avoid:
+False positives
+False gradient detection
+Temperature-induced errors
+Mechanical vibration effects
+This layered filtering makes system robust.
+Phase 3: Investigation & Source Localization Phase
+Phase 3 answers:
+Where is the source?
+Is it spreading?
+How strong is it?
+Is it stationary or dynamic?
+This phase converts:
+“Anomaly detected” → “Source localized at (x, y) with confidence x%”
+STEP 1: Trigger Condition
+Phase 3 begins if:
+AND
+Meaning:
+Abnormal value
+Non-zero spatial slope
+If slope ≈ 0 → random noiseIf slope significant → directional contamination
+STEP 2: Mathematical Objective
+We want to estimate: Where:
+OR
+This is an optimization problem.
+STEP 3:  Local Gradient Estimation (True 2D)
+Now we move beyond 1D derivative.
+Robot performs small controlled movements:
+Move Δx → measure pHMove Δy → measure pH
+Approximate:
+Then compute:
+Now we have direction vector.
+STEP 4: Navigation Strategy (Gradient Descent)
+If acidic plume:
+Move in direction of negative gradient:
+Where:
+α = step size
+Controls stability
+Too large α → oscillationToo small α → slow response
+This is literally environmental gradient descent.
+Analogy:
+Case 1: Acid Source
+Suppose:
+Normal lake pH = 7.2
+Near contamination = 6.8
+At source = 6.3
+So, as you move toward source:
+pH decreases.
+If we visualize this surface:
+It slopes downward toward the source.
+That downward bowl shape is like a valley.
+Lowest point = most acidic location.
+“valley” means: pH gets lower and lower as you approach the source.
+Case 2: Alkaline Source
+Now suppose:
+Normal pH = 7.2
+Near contamination = 7.8
+At source = 8.4
+Now pH increases toward source.
+The surface slopes upward.
+That forms a hill.
+Highest point = alkaline source.
+STEP 5: Confidence Validation
+We must validate before declaring source.
+Conditions:
+Gradient magnitude increasing
+pH magnitude decreasing consistently
+Turbidity increasing (if correlated)
+No sudden random reversals
+If:
+We reached flat region (possible center).
+STEP 6: Multi-Parameter Gradient Fusion
+Define composite field:
+Then compute:
+This increases reliability.
+Because:
+pH may drift slowly
+Turbidity may spike faster
+Combined signal is stronger.
+STEP 7: Source Confirmation Logic
+Declare source if:
+Local minimum pH reached
+Gradient magnitude ≈ 0
+Surrounding values higher
+Turbidity locally maximum
+Mathematically:
+AND
+That is second derivative positive (local minimum).
+STEP 8: Real-World Complications
+You must account for:
+Wind-driven surface currents
+Thermal stratification
+Sensor delay
+Plume diffusion
+Multiple pollution sources
+Which means:
+Gradient may shift over time.
+Your bot must:
+Continuously re-evaluate.
+STEP 9: Cleaning Integration
+Once source localized:
+Robot switches to:
+Cleaning Mode.
+For example:
+Activate suction pump
+Deploy neutralizing agent
+Deploy ferrous collection mechanism
+Cleaning radius defined by:
+Steeper gradient → smaller, concentrated sourceShallow gradient → widespread plume
+Understanding formula
+The gradient magnitude is:
+It measures:
+How steep the pH field is at that location.
+Units:
+pH per meter.
+Example:
+If pH changes 0.5 units over 1 meter:
+If it changes 0.05 over 1 meter:
+So larger gradient = steeper change.
+What Does Taking 1 / Gradient Mean?
+This inverts steepness.
+If gradient is large → result small.If gradient is small → result large.
+Physical Meaning in Lake
+Near contamination source:
+pH changes very sharply.
+Gradient is large.
+So:
+Meaning:
+The plume is concentrated in small area.
+Far from source:
+pH changes slowly.
+Gradient small.
+So:
+Meaning:
+Pollution is diffused over wide area.
+Why Interpret It as Radius?
+Because in diffusion physics:
+Concentration roughly follows a bell-shaped curve.
+Near center:
+Slope steep.
+Far from center:
+Slope shallow.
+The inverse gradient gives a rough measure of how wide the plume is.
+It is not exact radius — it is a proportional indicator.
+Dimensional Analysis
+Gradient unit:
+pH per meter.
+So:
+Unit:
+meter per pH.
+So technically:
+It’s not directly meters.
+To make it practical, you scale it:
+Where:
+k = tuning constant.
+Then r approximates influence radius.
+Why This Makes Sense Physically
+If gradient is very steep:
+Pollution is localized.
+Cleaning should be tight and concentrated.
+If gradient is shallow:
+Pollution is widespread.
+Cleaning area should be larger.
+So:
+Inverse gradient controls cleaning radius.
+What does mean?
+= magnitude of the pH gradient
+It tells you:
+How fast pH changes over distance
+Units example:
+Meaning of “large” gradient
+A large gradient means:
+pH changes quickly over a short distance.
+Example
+Distance
+pH
+0 m
+7.0
+1 m
+5.0
+Gradient:
+This is large because pH changed a lot in little space.
+Strong spatial variation → likely plume edge.
+Meaning of “small” gradient
+A small gradient means:
+pH changes slowly across space.
+Example
+Distance
+pH
+0 m
+7.0
+10 m
+6.9
+Gradient:
+Very small change → nearly uniform water.
+Why becomes small
+You wrote:
+This is just inverse relationship.
+Simple numbers
+| Gradient    | Reciprocal || 0.1              |  (small)  |    10 (large)                  || 1 | 1 || 5 (large) | 0.2 (small) |
+So:
+Large gradient → inverse becomes small
+Small gradient → inverse becomes large
+5️⃣ Physical intuition (VERY important)
+Think:
+Large gradient
+pH changes sharply → pollution boundary is tight
+7.0 → 6.0 → 5.0  (fast change)
+Distance needed for change = SMALL.
+So:
+👉 small value = sharp transition.
+Small gradient
+pH changes slowly:
+7.0 → 6.9 → 6.8 → 6.7
+Distance needed = LARGE.
+So inverse becomes large.
+6️⃣ What “large” and “small” actually mean in practice
+They are relative to a threshold you define.
+Example:
+| | Interpretation ||---|---|| < 0.05 | small gradient (mixing) || 0.05–0.5 | moderate || > 0.5 | large gradient (plume edge) |
+Engineers always choose thresholds experimentally.
+One-line intuition
+Large gradient = rapid spatial change.Small gradient = slow spatial change.
+and
+Taking reciprocal flips large ↔ small.

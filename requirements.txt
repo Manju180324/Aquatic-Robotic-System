@@ -1,0 +1,7 @@
+# Core runtime dependencies for the aquatic robotic simulation
+# Python 3.10+ recommended
+
+# Tkinter is part of the Python standard library on most distributions, so no extra package is required.
+# If you want to add plotting or richer visuals later, these can be included:
+# matplotlib>=3.8.0
+# numpy>=1.26.0
